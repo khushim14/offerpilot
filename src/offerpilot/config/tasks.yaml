@@ -36,12 +36,55 @@ write_cover_letter:
 
 review_application:
   description: >
-    Review the tailored resume and cover letter against the ORIGINAL resume
-    below and the job posting. Flag any invented claims, missing important
-    keywords, generic phrasing, or tone issues.
+    You are reviewing a job application draft (round {review_round}).
+    Compare the tailored resume and cover letter against the ORIGINAL resume
+    and the job posting. Flag any invented claims, missing important keywords,
+    generic phrasing, or tone issues. Approve only if there are no invented
+    claims and the score is 8 or higher.
+
+    JOB POSTING:
+    {job_posting}
 
     ORIGINAL RESUME:
     {resume}
+
+    TAILORED RESUME:
+    {tailored_resume}
+
+    COVER LETTER:
+    {cover_letter}
   expected_output: >
-    A markdown review with a verdict (APPROVED or NEEDS_CHANGES), a score out
-    of 10, and a bulleted list of specific issues with suggested fixes.
+    A verdict (APPROVED or NEEDS_CHANGES), a score out of 10, a one-paragraph
+    summary, and separate lists of specific, actionable issues for the resume
+    and for the cover letter (empty lists if none).
+
+revise_resume:
+  description: >
+    A reviewer flagged issues with the tailored resume. Fix every issue below
+    and return the complete revised resume. Use only facts from the ORIGINAL
+    resume. If the list is empty, return the tailored resume unchanged.
+
+    ISSUES:
+    {resume_issues}
+
+    ORIGINAL RESUME:
+    {resume}
+
+    CURRENT TAILORED RESUME:
+    {tailored_resume}
+  expected_output: >
+    The complete revised resume in markdown, and nothing else.
+
+revise_cover_letter:
+  description: >
+    A reviewer flagged issues with the cover letter. Fix every issue below and
+    return the complete revised letter, consistent with the revised resume.
+    If the list is empty, return the cover letter unchanged.
+
+    ISSUES:
+    {cover_letter_issues}
+
+    CURRENT COVER LETTER:
+    {cover_letter}
+  expected_output: >
+    The complete revised cover letter in markdown, and nothing else.
