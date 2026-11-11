@@ -20,8 +20,27 @@ from offerpilot.tools import research_tools
 DEFAULT_MODEL = "anthropic/claude-sonnet-5-5"
 
 
+# Which environment variable(s) each provider needs. Ollama runs locally and needs none.
+PROVIDER_KEYS = {
+    "anthropic": ("ANTHROPIC_API_KEY",),
+    "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    "openai": ("OPENAI_API_KEY",),
+    "groq": ("GROQ_API_KEY",),
+    "ollama": (),
+}
+
+
 def model_name() -> str:
-    return os.getenv("OFFERPILOT_MODEL", DEFAULT_MODEL)
+    return os.getenv("OFFERPILOT_MODEL") or DEFAULT_MODEL
+
+
+def missing_api_key() -> str | None:
+    """Return the name of the key the chosen model needs but doesn't have, or None if all set."""
+    provider = model_name().split("/", 1)[0]
+    keys = PROVIDER_KEYS.get(provider, ())
+    if keys and not any(os.getenv(k) for k in keys):
+        return keys[0]
+    return None
 
 
 def _agent(config: dict, **kwargs) -> Agent:
