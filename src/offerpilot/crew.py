@@ -5,6 +5,8 @@ import os
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 
+from offerpilot.tools import research_tools
+
 DEFAULT_MODEL = "anthropic/claude-sonnet-5-5"
 
 
@@ -23,7 +25,12 @@ class OfferPilotCrew:
 
     @agent
     def company_researcher(self) -> Agent:
-        return Agent(config=self.agents_config["company_researcher"], llm=model_name(), verbose=True)
+        return Agent(
+            config=self.agents_config["company_researcher"],
+            llm=model_name(),
+            tools=research_tools(),
+            verbose=True,
+        )
 
     @agent
     def resume_tailor(self) -> Agent:
@@ -48,18 +55,31 @@ class OfferPilotCrew:
         )
 
     # ---- Tasks (no agent assigned: the orchestrator decides who does each one)
+    # Research and resume tailoring don't depend on each other, so they run in parallel.
 
     @task
     def research_company(self) -> Task:
-        return Task(config=self.tasks_config["research_company"], output_file="output/company_brief.md")
+        return Task(
+            config=self.tasks_config["research_company"],
+            async_execution=True,
+            output_file="output/company_brief.md",
+        )
 
     @task
     def tailor_resume(self) -> Task:
-        return Task(config=self.tasks_config["tailor_resume"], output_file="output/tailored_resume.md")
+        return Task(
+            config=self.tasks_config["tailor_resume"],
+            async_execution=True,
+            output_file="output/tailored_resume.md",
+        )
 
     @task
     def write_cover_letter(self) -> Task:
-        return Task(config=self.tasks_config["write_cover_letter"], output_file="output/cover_letter.md")
+        return Task(
+            config=self.tasks_config["write_cover_letter"],
+            context=[self.research_company(), self.tailor_resume()],
+            output_file="output/cover_letter.md",
+        )
 
     @task
     def review_application(self) -> Task:
