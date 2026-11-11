@@ -5,17 +5,21 @@ research_company:
     JOB POSTING:
     {job_posting}
 
-    Cover: what the company does, what the team likely works on, the top 5
+    Use your tools to look up the company: its website, products, and recent
+    news. Cite the URLs you used. Cover: what the company does, what the team likely works on, the top 5
     required skills, nice-to-haves, and keywords the application should use.
   expected_output: >
     A markdown brief with sections: Company, Role, Top Skills, Nice-to-haves,
-    Keywords.
+    Keywords, Sources.
 
 tailor_resume:
   description: >
-    Using the company brief, rewrite the candidate's resume for this role.
-    Reorder and rephrase bullets to match the role's priorities and keywords.
+    Rewrite the candidate's resume for the job posting below.
+    Reorder and rephrase bullets to match the role's requirements and keywords.
     Do NOT invent jobs, skills, metrics, or dates.
+
+    JOB POSTING:
+    {job_posting}
 
     ORIGINAL RESUME:
     {resume}
