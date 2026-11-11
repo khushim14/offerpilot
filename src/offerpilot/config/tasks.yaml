@@ -1,0 +1,43 @@
+research_company:
+  description: >
+    Read this job posting and produce a company and role brief.
+
+    JOB POSTING:
+    {job_posting}
+
+    Cover: what the company does, what the team likely works on, the top 5
+    required skills, nice-to-haves, and keywords the application should use.
+  expected_output: >
+    A markdown brief with sections: Company, Role, Top Skills, Nice-to-haves,
+    Keywords.
+
+tailor_resume:
+  description: >
+    Using the company brief, rewrite the candidate's resume for this role.
+    Reorder and rephrase bullets to match the role's priorities and keywords.
+    Do NOT invent jobs, skills, metrics, or dates.
+
+    ORIGINAL RESUME:
+    {resume}
+  expected_output: >
+    The full tailored resume in markdown, followed by a short "Changes made" list.
+
+write_cover_letter:
+  description: >
+    Write a cover letter for this role using the company brief and the
+    tailored resume. Keep it under 350 words, specific to this company,
+    and grounded only in the candidate's real experience.
+  expected_output: >
+    A cover letter in markdown, ready to send.
+
+review_application:
+  description: >
+    Review the tailored resume and cover letter against the ORIGINAL resume
+    below and the job posting. Flag any invented claims, missing important
+    keywords, generic phrasing, or tone issues.
+
+    ORIGINAL RESUME:
+    {resume}
+  expected_output: >
+    A markdown review with a verdict (APPROVED or NEEDS_CHANGES), a score out
+    of 10, and a bulleted list of specific issues with suggested fixes.
