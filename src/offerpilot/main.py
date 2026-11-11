@@ -1,7 +1,6 @@
 """Command-line entry point: offerpilot --job <url or file> --resume <file>"""
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -15,11 +14,13 @@ def run() -> None:
     parser.add_argument("--resume", default="inputs/sample_resume.md", help="Path to your resume (text or markdown).")
     args = parser.parse_args()
 
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        sys.exit("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key.")
-
-    from offerpilot.flow import OfferPilotFlow  # imported late so --help stays fast
+    from offerpilot.crew import missing_api_key, model_name  # imported late so --help stays fast
+    from offerpilot.flow import OfferPilotFlow
     from offerpilot.tools import read_job_posting
+
+    if key := missing_api_key():
+        sys.exit(f"{key} is not set for model {model_name()}. Add it to .env (see .env.example).")
+    print(f"Using model: {model_name()}")
 
     flow = OfferPilotFlow()
     flow.kickoff(

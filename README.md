@@ -43,7 +43,7 @@ git clone https://github.com/<you>/offerpilot.git
 cd offerpilot
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env        # then paste your Anthropic API key into .env
+cp .env.example .env        # then pick a model and add its key (see below)
 offerpilot --job inputs/sample_job.md --resume inputs/sample_resume.md
 
 # or point it at a live posting
@@ -53,6 +53,18 @@ offerpilot --job https://example.com/careers/some-job --resume my_resume.md
 For live web search, add a free `SERPER_API_KEY` from [serper.dev](https://serper.dev) to `.env`. Without it, the researcher can still read web pages.
 
 Results are written to `output/`, including `review.md` with every review round.
+
+## Choosing a model (free options included)
+
+OfferPilot works with any model CrewAI supports. Set `OFFERPILOT_MODEL` in `.env`:
+
+| Option | `OFFERPILOT_MODEL` | Cost | Key |
+|---|---|---|---|
+| Google Gemini | `gemini/gemini-flash-latest` | Free tier, with rate limits | `GEMINI_API_KEY` from [Google AI Studio](https://aistudio.google.com/apikey) |
+| Ollama (local) | `ollama/qwen3:8b` | Free, runs on your machine | None. Install [Ollama](https://ollama.com) and run `ollama pull qwen3:8b` |
+| Anthropic Claude | `anthropic/claude-sonnet-5-5` | Paid | `ANTHROPIC_API_KEY` from [Anthropic Console](https://console.anthropic.com) |
+
+Small local models can struggle with the orchestrator's delegation step. If a local run gets stuck, try Gemini.
 
 ## Run the tests
 
@@ -69,4 +81,4 @@ pytest
 
 ## Tech
 
-Python · CrewAI · Anthropic Claude
+Python · CrewAI · Gemini / Claude / Ollama
