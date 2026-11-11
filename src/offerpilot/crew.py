@@ -1,9 +1,19 @@
-"""The OfferPilot crew: an orchestrator that delegates to four specialist agents."""
+"""The OfferPilot crews.
+
+- DraftingCrew: the orchestrator delegates research, resume tailoring, and the
+  cover letter to specialists (hierarchical process).
+- ReviewCrew: the reviewer scores the drafts and returns structured feedback.
+- RevisionCrew: the resume tailor and cover letter writer fix flagged issues.
+
+The flow in flow.py connects them into a draft -> review -> revise loop.
+"""
 
 import os
+from typing import Literal
 
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
+from pydantic import BaseModel, Field
 
 from offerpilot.tools import research_tools
 
@@ -14,76 +24,60 @@ def model_name() -> str:
     return os.getenv("OFFERPILOT_MODEL", DEFAULT_MODEL)
 
 
+def _agent(config: dict, **kwargs) -> Agent:
+    return Agent(config=config, llm=model_name(), verbose=True, **kwargs)
+
+
+class Review(BaseModel):
+    """Structured output from the reviewer, used by the flow to decide what happens next."""
+
+    verdict: Literal["APPROVED", "NEEDS_CHANGES"]
+    score: int = Field(ge=0, le=10)
+    summary: str
+    resume_issues: list[str] = []
+    cover_letter_issues: list[str] = []
+
+
 @CrewBase
-class OfferPilotCrew:
+class DraftingCrew:
     """Hierarchical crew. The orchestrator plans and delegates; specialists do the work."""
 
     agents_config = "config/agents.yaml"
     tasks_config = "config/tasks.yaml"
 
-    # ---- Specialists -------------------------------------------------------
-
     @agent
     def company_researcher(self) -> Agent:
-        return Agent(
-            config=self.agents_config["company_researcher"],
-            llm=model_name(),
-            tools=research_tools(),
-            verbose=True,
-        )
+        return _agent(self.agents_config["company_researcher"], tools=research_tools())
 
     @agent
     def resume_tailor(self) -> Agent:
-        return Agent(config=self.agents_config["resume_tailor"], llm=model_name(), verbose=True)
+        return _agent(self.agents_config["resume_tailor"])
 
     @agent
     def cover_letter_writer(self) -> Agent:
-        return Agent(config=self.agents_config["cover_letter_writer"], llm=model_name(), verbose=True)
+        return _agent(self.agents_config["cover_letter_writer"])
 
-    @agent
-    def reviewer(self) -> Agent:
-        return Agent(config=self.agents_config["reviewer"], llm=model_name(), verbose=True)
-
-    # ---- Orchestrator (not an @agent: the manager must stay out of the worker list)
-
+    # Not an @agent: the manager must stay out of the worker list.
     def orchestrator(self) -> Agent:
-        return Agent(
-            config=self.agents_config["orchestrator"],
-            llm=model_name(),
-            allow_delegation=True,
-            verbose=True,
-        )
+        return _agent(self.agents_config["orchestrator"], allow_delegation=True)
 
-    # ---- Tasks (no agent assigned: the orchestrator decides who does each one)
+    # No agent assigned: the orchestrator decides who does each task.
     # Research and resume tailoring don't depend on each other, so they run in parallel.
 
     @task
     def research_company(self) -> Task:
-        return Task(
-            config=self.tasks_config["research_company"],
-            async_execution=True,
-            output_file="output/company_brief.md",
-        )
+        return Task(config=self.tasks_config["research_company"], async_execution=True)
 
     @task
     def tailor_resume(self) -> Task:
-        return Task(
-            config=self.tasks_config["tailor_resume"],
-            async_execution=True,
-            output_file="output/tailored_resume.md",
-        )
+        return Task(config=self.tasks_config["tailor_resume"], async_execution=True)
 
     @task
     def write_cover_letter(self) -> Task:
         return Task(
             config=self.tasks_config["write_cover_letter"],
             context=[self.research_company(), self.tailor_resume()],
-            output_file="output/cover_letter.md",
         )
-
-    @task
-    def review_application(self) -> Task:
-        return Task(config=self.tasks_config["review_application"], output_file="output/review.md")
 
     @crew
     def crew(self) -> Crew:
@@ -94,3 +88,59 @@ class OfferPilotCrew:
             manager_agent=self.orchestrator(),
             verbose=True,
         )
+
+
+@CrewBase
+class ReviewCrew:
+    """A single reviewer that returns a structured Review."""
+
+    agents_config = "config/agents.yaml"
+    tasks_config = "config/tasks.yaml"
+
+    @agent
+    def reviewer(self) -> Agent:
+        return _agent(self.agents_config["reviewer"])
+
+    @task
+    def review_application(self) -> Task:
+        return Task(
+            config=self.tasks_config["review_application"],
+            agent=self.reviewer(),
+            output_pydantic=Review,
+        )
+
+    @crew
+    def crew(self) -> Crew:
+        return Crew(agents=self.agents, tasks=self.tasks, process=Process.sequential, verbose=True)
+
+
+@CrewBase
+class RevisionCrew:
+    """The original authors fix the issues the reviewer flagged."""
+
+    agents_config = "config/agents.yaml"
+    tasks_config = "config/tasks.yaml"
+
+    @agent
+    def resume_tailor(self) -> Agent:
+        return _agent(self.agents_config["resume_tailor"])
+
+    @agent
+    def cover_letter_writer(self) -> Agent:
+        return _agent(self.agents_config["cover_letter_writer"])
+
+    @task
+    def revise_resume(self) -> Task:
+        return Task(config=self.tasks_config["revise_resume"], agent=self.resume_tailor())
+
+    @task
+    def revise_cover_letter(self) -> Task:
+        return Task(
+            config=self.tasks_config["revise_cover_letter"],
+            agent=self.cover_letter_writer(),
+            context=[self.revise_resume()],
+        )
+
+    @crew
+    def crew(self) -> Crew:
+        return Crew(agents=self.agents, tasks=self.tasks, process=Process.sequential, verbose=True)

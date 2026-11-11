@@ -6,31 +6,35 @@ Give OfferPilot a job posting and your resume. An orchestrator agent plans the w
 
 ## Architecture
 
+OfferPilot is a **CrewAI Flow** that connects three crews into a draft, review and revise loop.
+
 ```mermaid
 flowchart TD
-    U[Job posting + resume] --> O[Application Orchestrator<br/>manager agent]
-    O -->|delegates| R[Company Researcher]
-    O -->|delegates| T[Resume Tailor]
-    O -->|delegates| W[Cover Letter Writer]
-    O -->|delegates| Q[Application Reviewer]
-    R --> O
-    T --> O
-    W --> O
-    Q --> O
-    O --> OUT[output/: brief, tailored resume,<br/>cover letter, review]
+    IN[Job posting + resume] --> D
+
+    subgraph D[Drafting crew: hierarchical]
+        O[Application Orchestrator<br/>manager agent] -->|delegates| R[Company Researcher<br/>web scrape + search]
+        O -->|delegates| T[Resume Tailor]
+        O -->|delegates| W[Cover Letter Writer]
+    end
+
+    D --> RV[Review crew<br/>Application Reviewer]
+    RV -->|APPROVED, or revision cap reached| OUT[output/: brief, resume,<br/>cover letter, review history]
+    RV -->|NEEDS_CHANGES| RE[Revision crew<br/>Resume Tailor + Cover Letter Writer]
+    RE --> RV
 ```
 
-The crew runs as a **hierarchical process**: tasks have no fixed owner, and the orchestrator decides which specialist handles each one, checks the result, and moves on.
-
-Company research and resume tailoring don't depend on each other, so they **run in parallel**. The cover letter waits for both and uses their results.
+1. **Draft.** In the drafting crew, the orchestrator decides which specialist handles each task. Company research and resume tailoring **run in parallel**, and the cover letter waits for both.
+2. **Review.** The reviewer returns a **structured verdict** (a Pydantic model): `APPROVED` or `NEEDS_CHANGES`, a score out of 10, and separate issue lists for the resume and the cover letter.
+3. **Revise.** The flow's router sends each issue list back to the agent who wrote that piece, then reviews again. Revisions are **capped at 2**, so the loop always ends.
 
 | Agent | Job |
 |---|---|
-| Application Orchestrator | Plans the work, delegates, and checks quality |
+| Application Orchestrator | Plans the draft and delegates to specialists |
 | Company Researcher | Scrapes and searches the web for the company's focus, top skills, and keywords, and cites sources |
-| Resume Tailor | Rewrites resume bullets to match the role, without inventing anything |
-| Cover Letter Writer | Writes a specific, one-page letter |
-| Application Reviewer | Flags invented claims, missing keywords, and tone issues |
+| Resume Tailor | Rewrites resume bullets to match the role without inventing anything, then fixes flagged issues |
+| Cover Letter Writer | Writes a specific one-page letter, then fixes flagged issues |
+| Application Reviewer | Flags invented claims, missing keywords, and tone issues, and approves or sends work back |
 
 ## Quick start
 
@@ -48,7 +52,7 @@ offerpilot --job https://example.com/careers/some-job --resume my_resume.md
 
 For live web search, add a free `SERPER_API_KEY` from [serper.dev](https://serper.dev) to `.env`. Without it, the researcher can still read web pages.
 
-Results are written to `output/`.
+Results are written to `output/`, including `review.md` with every review round.
 
 ## Run the tests
 
@@ -60,7 +64,7 @@ pytest
 
 - [x] Step 1: Hierarchical crew with an orchestrator and four specialists
 - [x] Step 2: Web research tools, reading postings from a URL, and parallel research and tailoring
-- [ ] Step 3: A review loop (CrewAI Flow) that sends flagged work back for revision
+- [x] Step 3: A review loop (CrewAI Flow) that sends flagged work back for revision
 - [ ] Step 4: A polished CLI and demo
 
 ## Tech

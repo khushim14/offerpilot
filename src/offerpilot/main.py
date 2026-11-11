@@ -18,16 +18,21 @@ def run() -> None:
     if not os.getenv("ANTHROPIC_API_KEY"):
         sys.exit("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key.")
 
-    from offerpilot.crew import OfferPilotCrew  # imported late so --help stays fast
+    from offerpilot.flow import OfferPilotFlow  # imported late so --help stays fast
     from offerpilot.tools import read_job_posting
 
-    inputs = {
-        "job_posting": read_job_posting(args.job),
-        "resume": Path(args.resume).read_text(encoding="utf-8"),
-    }
-    Path("output").mkdir(exist_ok=True)
-    OfferPilotCrew().crew().kickoff(inputs=inputs)
-    print("\nDone. See the output/ folder for the brief, tailored resume, cover letter, and review.")
+    flow = OfferPilotFlow()
+    flow.kickoff(
+        inputs={
+            "job_posting": read_job_posting(args.job),
+            "resume": Path(args.resume).read_text(encoding="utf-8"),
+        }
+    )
+    final = flow.state.reviews[-1]
+    print(
+        f"\nDone after {flow.state.revisions} revision(s). Final review: {final.verdict} ({final.score}/10)."
+        "\nSee the output/ folder for the brief, tailored resume, cover letter, and review history."
+    )
 
 
 if __name__ == "__main__":
